@@ -15,6 +15,15 @@ var metadata = {
 };
 var opscan = 0;
 var errorconn = 0;
+// ----- SLEEP Function to unfuck some nodeJS things - NO modify
+function sleep(milliseconds) {
+	var start = new Date().getTime();
+	for (var i = 0; i < 1e7; i++) {
+		if ((new Date().getTime() - start) > milliseconds) {
+			break;
+		}
+	}
+};
 
 // Lets Start this script!
 console.log("Starting Votezy v0.0.1 on @" + votebot + " - Script By @KLYE");
@@ -41,6 +50,7 @@ function trannyscanner() {
                 });
                 steem.config.set('websocket', 'wss://steemd.steemitdev.com');
                 trannyscanner();
+                sleep(2000);
                 return;
             } else {
                 console.log("ERROR - RPC Connection Lost/Timeout");
@@ -50,6 +60,7 @@ function trannyscanner() {
                 });
                 steem.config.set('websocket', 'wss://gtg.steem.house:8090');
                 trannyscanner();
+                                sleep(2000);
                 return;
             };
         };
