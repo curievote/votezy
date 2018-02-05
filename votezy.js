@@ -1,153 +1,91 @@
 ////////////////////////////////////////////////////////////////////////////////
-//-----  VOTEZY STEEMIT.COM Bot v0.0.1 - An Open NodeJS Source "Pay-4-Vote" Script
+//-----  VOTEZY STEEMIT.COM Bot v0.0.2 - An Open NodeJS Source "Pay-4-Vote" Script
 //-----  A functional yet probably not wise to run paid voting script in nodeJS
 //----- Written, Tested (barely), Butchered and Released by: @KLYE steemit.com/@klye
 //----- Like this Script and want More?! Please vote my witness efforts!
 ////////////////////////////////////////////////////////////////////////////////
+
+const steem = require('steem');
+
+const version = '0.0.2';
+const authors = ['klye', 'reggaemuffin'];
+
 // Add your Account Info Here!
-var votebot = "klye"; // Account to Run Bot on
-var wif = ""; // Posting Private Key Here
+const votebot = "klye"; // Account to Run Bot on
+const wif = ""; // Posting Private Key Here
 
 // NO NEED TO MODIFY THESE
-var steem = require('steem');
-var metadata = {
-    "app": "votezy/0.0.1"
+
+const metadata = {
+    "app": `votezy/${version}`
 };
-var opscan = 0;
-var errorconn = 0;
-// ----- SLEEP Function to unfuck some nodeJS things - NO modify
-function sleep(milliseconds) {
-	var start = new Date().getTime();
-	for (var i = 0; i < 1e7; i++) {
-		if ((new Date().getTime() - start) > milliseconds) {
-			break;
-		}
-	}
-};
+let opscan = 1;
 
 // Lets Start this script!
-console.log("Starting Votezy v0.0.1 on @" + votebot + " - Script By @KLYE");
-// Fix to send to new API server
-steem.api.setOptions({ url: 'https://api.steemit.com'});
-steem.config.set('websocket', 'wss://steemd.steemitdev.com');
-//steem.api.setOptions({ url: 'https://steemd.privex.io' });
-// Start the script scanning
-trannyscanner();
-
-// The Transaction Streamer function
-function trannyscanner() {
-
-    // Stream irreversible Operations
-    steem.api.streamOperations('irreversible', function(err2, safeblockops) {
-        // If operations call to RPC f*cks up
-        if (err2) {
-            errorconn++;
-            if (errorconn % 3 === 0) {
-                console.log("ERROR - RPC Connection Lost/Timeout");
-                console.log("Attempting to Reconnect to Official Steemit.com RPC now..!");
-                steem.api.setOptions({
-                    url: 'https://api.steemit.com'
-                });
-                steem.config.set('websocket', 'wss://steemd.steemitdev.com');
-                trannyscanner();
-                sleep(2000);
-                return;
-            } else {
-                console.log("ERROR - RPC Connection Lost/Timeout");
-                console.log("Attempting to Reconnect to rpc.buildteam.io RPC now..!");
-                steem.api.setOptions({
-                    url: 'https://rpc.buildteam.io'
-                });
-                steem.config.set('websocket', 'wss://gtg.steem.house:8090');
-                trannyscanner();
-                                sleep(2000);
-                return;
-            };
-        };
-        // If we get operations from server
-        if (safeblockops) {
-            // get 1st item in blockops an apply to operationType variable to check type later
-            var opType = safeblockops[0];
-            // get 2nd item in blockops and store it later to be parsed if it's our specified type of operation
-            var op = safeblockops[1];
-            //check if current operation is a comment
-            if (opType == "transfer") {
-                opscan++;
-                console.log("Transfer Scanned: " + opscan);
-                process_transfer(op);
-            }
-        };
-    }); // END streamOperations irreversible!!!
-}; // End trannyscanner
+console.log(`Starting Votezy v${version} on @${votebot} Account - Script By @${authors.join(', @')}`);
 
 // Transfer operation found? Lets see if it is for us!
-var process_transfer = function(op) {
-    if (op["to"] == votebot) {
-
-        var depositer = op["from"];
-        var reciever = op["to"];
-        var firstdepo = op["amount"];
-        var currency = op["amount"];
-        var depositmemo = op["memo"];
-        var chaching = parseFloat(currency);
-        var type = currency.substring(currency.lastIndexOf(" ") + 1);
-        // Unused "if no memo" logic
-        if (depositmemo == undefined) {
-            //console.log(time + " - " + chaching + " " + type + " Transfer from @" + depositer + " to @" + reciever);
-        } else {
-            // Look for Steemit.com Link
-            if (depositmemo.toLowerCase().indexOf("https://steemit.com") >= 0) {
-                if (chaching >= 0.001) {
-                    console.log(chaching + " " + type + " transfer from @" + depositer + " to @" + reciever + " Detected with Memo Containing Link:");
-                    console.log(depositmemo);
-                    var parentAuthor = depositmemo.match(/\/@(\w*)\//)[1];
-                    console.log("Parent Author: " + parentAuthor);
-                    var permlink = depositmemo.substring(depositmemo.lastIndexOf("/") + 1);
-                    console.log("Permalink: " + permlink);
-                    var weight = Math.floor(Math.random() * 10000);
-                    var weightpercent = parseFloat(weight / 100).toFixed(2);
-                    // Prepare vote response
-                    var balancetable = [
-                        "| <center><h4>@" + parentAuthor + " Got a <b>" + weightpercent + "%</b> Vote via @" + votebot + "</h4></center> |",
-                        "|:----:|",
-                        "| <center>Send any amount of STEEM or SBD Over 1.000 & Recieve a RANDOM @KLYE VOTE<br>Make sure to include the link to your post in the memo field of the transfer!<br><sub>( Any amounts < 1.000 STEEM or SBD will be considered donations )</sub></center> |",
-                        "| <center>Vote power is Generated via RNG (Random Number Generator)</center> |"
-                    ].join("\n");
-                    var title = "@KLYE Pay-4-Vote Report:";
-                    //reply comment
-                    steem.broadcast.vote(
-                        wif,
-                        votebot,
-                        parentAuthor,
-                        permlink,
-                        weight,
-                        function(err, result) {
-                            // if it f**ks up...
-                            if (err) {
-                                console.log("Pay-4-Vote FAILED");
-                                console.log(err);
-                                return;
-                            };
-                            // If it wins
-                            if (result) {
-                                console.log("Pay-4-Vote Success! Upvote of " + weightpercent + "%!");
-                                replycomment(wif, parentAuthor, permlink, votebot, permlink, title, balancetable, metadata);
-                            };
-                        });
-                }
-            };
+var process_transfer = function (op) {
+  console.log(op);
+    const depositer = op.data.from;
+    const currency = op.data.amount.lastIndexOf(" ") + 1;
+    const depositmemo = op.data.memo;
+    const amount = parseFloat(currency[0]);
+    const type = currency[1];
+    // Look for Steemit.com Link
+    if (depositmemo.toLowerCase().indexOf("https://steemit.com") >= 0) {
+        if (amount >= 0.001) {
+            console.log(`${currency.join(' ')} transfer from @${depositer()} to @${votebot} Detected with Memo Containing Link:"`);
+            console.log(depositmemo);
+            const parentAuthor = depositmemo.match(/\/@(\w*)\//)[1];
+            console.log("Parent Author: " + parentAuthor);
+            const permlink = depositmemo.substring(depositmemo.lastIndexOf("/") + 1);
+            console.log("Permalink: " + permlink);
+            const weight = Math.floor(Math.random() * 10000);
+            const weightpercent = parseFloat(weight / 100).toFixed(2);
+            // Prepare vote response
+            const balancetable = [
+                "| <center><h4>@" + parentAuthor + " Got a <b>" + weightpercent + "%</b> Vote via @" + votebot + "</h4></center> |",
+                "|:----:|",
+                "| <center>Send any amount of STEEM or SBD Over 1.000 & Recieve a RANDOM @" + votebot + " VOTE<br>Make sure to include the link to your post in the memo field of the transfer!<br><sub>( Any amounts < 1.000 STEEM or SBD will be considered donations )</sub></center> |",
+                "| <center>Vote power is Generated via RNG (Random Number Generator)</center> |"
+            ].join("\n");
+            const title = `@${votebot} Pay-4-Vote Report:`;
+            //reply comment
+            steem.broadcast.vote(
+                wif,
+                votebot,
+                parentAuthor,
+                permlink,
+                weight,
+                function (err, result) {
+                    // if it f**ks up...
+                    if (err) {
+                        console.log("Pay-4-Vote FAILED");
+                        console.log(err);
+                        return;
+                    }
+                    ;
+                    // If it wins
+                    if (result) {
+                        console.log("Pay-4-Vote Success! Upvote of " + weightpercent + "%!");
+                        replycomment(wif, parentAuthor, permlink, votebot, permlink, title, balancetable, metadata);
+                    }
+                    ;
+                });
         }
-    };
-};
+    }
+
+}
 
 // Send a voted comment
-var replycomment = function(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata) {
+function replycomment(parentAuthor, permlink, votebot, title, content, metadata) {
     //broadcast comment
-    steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function(commentfailz, commentwinz) {
+    steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function (commentfailz, commentwinz) {
         if (commentfailz) {
             console.log("Error");
             // Load first op without removing
-            steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function(errqc, winqc) {
+            steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function (errqc, winqc) {
                 if (errqc) {
                     console.log("ERROR Sending Comment!");
                 }
@@ -155,11 +93,98 @@ var replycomment = function(wif, parentAuthor, permlink, votebot, permlink, titl
                     console.log(parentAuthor + "'s Response Sent");
                 }
             });
-        }; //END  if (commentfailz)
+        }
+        ; //END  if (commentfailz)
         if (commentwinz) {
             console.log(parentAuthor + "'s Response Sent");
 
         }
     });
 
-}; //END replycomment
+}
+
+
+const log = require('fancy-log');
+const moment = require('moment');
+
+
+//steem.api.setOptions({url: 'https://rpc.buildteam.io'});
+
+steem.api.setOptions({
+    url: 'https://api.steemit.com'
+});
+
+
+let shutdown = false;
+let blockNum = process.argv[2] || 19439706;
+
+async function start() {
+    try {
+        log(`Parser is resuming at block ${blockNum}`);
+        parseBlock(blockNum);
+    } catch (e) {
+        log(`bailing with ${e}`);
+        return bail(e);
+    }
+}
+
+async function bail(err) {
+    log(`bailing on ${err}`);
+    log.error(err);
+    process.exit(err === undefined ? 0 : 1);
+}
+
+function parseBlock(blockNum) {
+    steem.api.getBlock(blockNum, async function (err, block) {
+        try {
+            if (err !== null) return bail(err);
+            if (block === null) {
+                log(`At end of chain, waiting for new block…`);
+                await timeout(30000);
+                return setTimeout(() => parseBlock(blockNum));
+            }
+            blockJSON = JSON.stringify(block);
+            timestamp = moment.utc(block.timestamp);
+            var blockfull = (( parseInt(getBinarySize(blockJSON)) / 65536 ) * 100).toFixed(2);
+            log(`Block #${blockNum} at ${block.timestamp}, ${timestamp.fromNow()}, ${moment().diff(timestamp, 'seconds')} seconds by @${block.witness} - ${block.transactions.length} TXs - ${getBinarySize(blockJSON)}/65536 kb (${blockfull}% Full)`);
+            blockNum++;
+            for (let transaction of block.transactions) {
+                for (let operation of transaction.operations) {
+                    const action = operation[0];
+                    const data = operation[1];
+                    const op = {
+                        action: action,
+                        data: data
+                    };
+                    // log(`Found operation ${JSON.stringify(op)}`);
+                    if (action === "transfer" && data.to === votebot) {
+                        opscan++;
+                        console.log("Transfer Scanned: " + opscan);
+                        process_transfer(op);
+                    }
+                }
+            }
+            if (shutdown) return bail();
+            setTimeout(() => parseBlock(blockNum));
+        } catch (e) {
+            log(`bailing with ${e}`);
+            return bail(e);
+        }
+    });
+}
+
+process.on('SIGINT', function () {
+    log(`Shutting down in 10 seconds, start again with block ${blockNum}`);
+    shutdown = true;
+    setTimeout(bail, 10000);
+});
+
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getBinarySize(string) {
+    return Buffer.byteLength(string, 'utf8');
+}
+
+return start();
