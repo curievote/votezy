@@ -26,16 +26,17 @@ console.log(`Starting Votezy v${version} on @${votebot} Account - Script By @${a
 
 // Transfer operation found? Lets see if it is for us!
 var process_transfer = function (op) {
+  console.log("Operation:");
   console.log(op);
     const depositer = op.data.from;
     const currency = op.data.amount.lastIndexOf(" ") + 1;
     const depositmemo = op.data.memo;
-    const amount = parseFloat(currency[0]);
+    const amount = parseFloat(op.data.amount);
     const type = currency[1];
     // Look for Steemit.com Link
     if (depositmemo.toLowerCase().indexOf("https://steemit.com") >= 0) {
         if (amount >= 0.001) {
-            console.log(`${currency.join(' ')} transfer from @${depositer()} to @${votebot} Detected with Memo Containing Link:"`);
+            console.log(`${op.data.amount} transfer from @${depositer} to @${votebot} Detected with Memo Containing Link:"`);
             console.log(depositmemo);
             const parentAuthor = depositmemo.match(/\/@(\w*)\//)[1];
             console.log("Parent Author: " + parentAuthor);
@@ -48,7 +49,7 @@ var process_transfer = function (op) {
                 "| <center><h4>@" + parentAuthor + " Got a <b>" + weightpercent + "%</b> Vote via @" + votebot + "</h4></center> |",
                 "|:----:|",
                 "| <center>Send any amount of STEEM or SBD Over 1.000 & Recieve a RANDOM @" + votebot + " VOTE<br>Make sure to include the link to your post in the memo field of the transfer!<br><sub>( Any amounts < 1.000 STEEM or SBD will be considered donations )</sub></center> |",
-                "| <center>Vote power is Generated via RNG (Random Number Generator)</center> |"
+                "| <center>Vote power is Generated via RNG (Random Number Generator)<br>USE AT YOUR OWN RISK, EXPERIMENTAL SERVICE</center> |"
             ].join("\n");
             const title = `@${votebot} Pay-4-Vote Report:`;
             //reply comment
@@ -79,11 +80,12 @@ var process_transfer = function (op) {
 }
 
 // Send a voted comment
-function replycomment(parentAuthor, permlink, votebot, title, content, metadata) {
+function replycomment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata) {
     //broadcast comment
     steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function (commentfailz, commentwinz) {
         if (commentfailz) {
             console.log("Error");
+            console.log(commentfailz);
             // Load first op without removing
             steem.broadcast.comment(wif, parentAuthor, permlink, votebot, permlink, title, content, metadata, function (errqc, winqc) {
                 if (errqc) {
@@ -108,15 +110,13 @@ const log = require('fancy-log');
 const moment = require('moment');
 
 
-//steem.api.setOptions({url: 'https://rpc.buildteam.io'});
+// steem.api.setOptions({url: 'https://rpc.buildteam.io'});
 
-steem.api.setOptions({
-    url: 'https://api.steemit.com'
-});
+steem.api.setOptions({url: 'https://api.steemit.com'});
 
 
 let shutdown = false;
-let blockNum = process.argv[2] || 19439706;
+let blockNum = process.argv[2] || 19695269;
 
 async function start() {
     try {
@@ -140,13 +140,13 @@ function parseBlock(blockNum) {
             if (err !== null) return bail(err);
             if (block === null) {
                 log(`At end of chain, waiting for new block…`);
-                await timeout(30000);
+                await timeout(3000);
                 return setTimeout(() => parseBlock(blockNum));
             }
             blockJSON = JSON.stringify(block);
             timestamp = moment.utc(block.timestamp);
             var blockfull = (( parseInt(getBinarySize(blockJSON)) / 65536 ) * 100).toFixed(2);
-            log(`Block #${blockNum} at ${block.timestamp}, ${timestamp.fromNow()}, ${moment().diff(timestamp, 'seconds')} seconds by @${block.witness} - ${block.transactions.length} TXs - ${getBinarySize(blockJSON)}/65536 kb (${blockfull}% Full)`);
+            log(`Got Block ${blockNum} at ${block.timestamp} - ${block.transactions.length} TXs - ${getBinarySize(blockJSON)}/65536 kb (${blockfull}% Full)`);
             blockNum++;
             for (let transaction of block.transactions) {
                 for (let operation of transaction.operations) {
